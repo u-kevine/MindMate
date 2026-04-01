@@ -6,34 +6,58 @@ import { casesApi, authApi } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import toast from 'react-hot-toast'
-import {
-  PageHeader, StatusBadge, PriorityBadge, Modal,
-  EmptyState, PageLoader, SearchInput, ProgressBar,
-} from '../components/common/index.jsx'
 
 const CASE_TYPES = [
-  { value: 'academic',     label: 'Stress Académique' },
-  { value: 'anxiety',      label: 'Anxiété' },
-  { value: 'grief',        label: 'Deuil & Perte' },
-  { value: 'relationship', label: 'Relations' },
-  { value: 'depression',   label: 'Dépression' },
+  { value: 'academic',     label: 'Academic Stress' },
+  { value: 'anxiety',      label: 'Anxiety' },
+  { value: 'grief',        label: 'Grief & Loss' },
+  { value: 'relationship', label: 'Relationships' },
+  { value: 'depression',   label: 'Depression' },
   { value: 'trauma',       label: 'Trauma' },
-  { value: 'other',        label: 'Autre' },
+  { value: 'other',        label: 'Other' },
 ]
+
 const PRIORITIES = [
-  { value: 'low',    label: 'Faible — bien-être général' },
-  { value: 'medium', label: 'Moyenne — affecte la vie quotidienne' },
-  { value: 'high',   label: 'Élevée — besoin d\'aide urgente' },
-  { value: 'urgent', label: 'Urgente — crise immédiate' },
+  { value: 'low',    label: 'Low — general wellness' },
+  { value: 'medium', label: 'Medium — affecting daily life' },
+  { value: 'high',   label: 'High — need urgent help' },
+  { value: 'urgent', label: 'Urgent — immediate crisis' },
 ]
+
+function StatusBadge({ status }) {
+  const map = { open: 'badge-open', in_progress: 'badge-progress', resolved: 'badge-resolved', closed: 'badge-resolved' }
+  const labels = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved', closed: 'Closed' }
+  return <span className={`badge ${map[status] || 'badge-open'}`}>{labels[status] || status}</span>
+}
+
+function PriorityBadge({ priority }) {
+  const map = { low: 'badge-low', medium: 'badge-medium', high: 'badge-high', urgent: 'badge-urgent' }
+  const labels = { low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent' }
+  return <span className={`badge ${map[priority] || 'badge-medium'}`}>{labels[priority] || priority}</span>
+}
+
+function Modal({ open, onClose, title, subtitle, children, footer }) {
+  if (!open) return null
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
+      <div className="card" style={{ position: 'relative', width: '100%', maxWidth: 520, padding: 28, borderRadius: 20 }}>
+        {title && <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, marginBottom: 4 }}>{title}</h2>}
+        {subtitle && <p style={{ fontSize: 13, color: '#A0AEC0', marginBottom: 20 }}>{subtitle}</p>}
+        {children}
+        {footer && <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid #EDF2F7' }}>{footer}</div>}
+      </div>
+    </div>
+  )
+}
 
 export default function CasesPage() {
   const { user }    = useAuth()
   const { t }       = useTheme()
   const qc          = useQueryClient()
-  const [search, setSearch]     = useState('')
+  const [search, setSearch]         = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [showCreate, setShowCreate]     = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
 
   const { data, isLoading } = useQuery(
     ['cases', statusFilter],
@@ -54,88 +78,99 @@ export default function CasesPage() {
       onSuccess: () => {
         qc.invalidateQueries('cases')
         qc.invalidateQueries('dashboard-stats')
-        toast.success('Demande soumise ! Un conseiller vous répondra sous 24h. 🌿')
+        toast.success('Request submitted! A counselor will respond within 24 hours. 🌿')
         setShowCreate(false)
         reset()
       },
-      onError: err => {
-        toast.error(err.response?.data?.detail || 'Erreur lors de la soumission.')
-      },
+      onError: err => toast.error(err.response?.data?.detail || 'Error submitting request.'),
     }
   )
 
   const cases = (data?.results || []).filter(c =>
-    !search || c.title?.toLowerCase().includes(search.toLowerCase()) ||
+    !search ||
+    c.title?.toLowerCase().includes(search.toLowerCase()) ||
     c.case_number?.toLowerCase().includes(search.toLowerCase()) ||
     c.student_name?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const statuses = [
-    { value: '',            label: 'Tous' },
-    { value: 'open',        label: 'Ouverts' },
-    { value: 'in_progress', label: 'En cours' },
-    { value: 'resolved',    label: 'Résolus' },
-  ]
-
   const isStudent = user?.role === 'student'
+
+  const statusFilters = [
+    { value: '', label: 'All' },
+    { value: 'open', label: 'Open' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'resolved', label: 'Resolved' },
+  ]
 
   return (
     <div className="animate-fade-in">
-      <PageHeader
-        title={isStudent ? t('my_cases') : t('cases')}
-        subtitle={isStudent ? 'Suivez vos demandes de soutien' : 'Gérez tous les dossiers étudiants'}
-        actions={
-          isStudent && (
-            <button className="btn btn-terra" onClick={() => setShowCreate(true)}>
-              {t('new_request')}
-            </button>
-          )
-        }
-      />
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
+            {isStudent ? 'My Support Requests' : 'Support Cases'}
+          </h1>
+          <p style={{ fontSize: 13, color: '#A0AEC0' }}>
+            {isStudent ? 'Track your support journey' : 'Manage all student cases'}
+          </p>
+        </div>
+        {isStudent && (
+          <button className="btn btn-terra" onClick={() => setShowCreate(true)}>
+            + New Request
+          </button>
+        )}
+      </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <SearchInput value={search} onChange={setSearch} placeholder="Rechercher un dossier…" />
-        <div className="flex gap-2 flex-wrap">
-          {statuses.map(s => (
-            <button key={s.value}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20, alignItems: 'center' }}>
+        <input
+          className="form-input"
+          style={{ maxWidth: 220 }}
+          placeholder="Search cases…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {statusFilters.map(s => (
+            <button
+              key={s.value}
               onClick={() => setStatusFilter(s.value)}
-              className={`btn btn-sm ${statusFilter === s.value ? 'btn-primary' : 'btn-outline'}`}>
+              className={`btn btn-sm ${statusFilter === s.value ? 'btn-primary' : 'btn-outline'}`}
+            >
               {s.label}
             </button>
           ))}
         </div>
-        {!isStudent && (
-          <select className="form-input" style={{ maxWidth: 200 }}
-            onChange={e => { /* filter by type */ }}>
-            <option>Tous les types</option>
-            {CASE_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
-          </select>
-        )}
       </div>
 
-      {/* Table */}
-      {isLoading ? <PageLoader /> : cases.length === 0 ? (
-        <EmptyState icon="📋" title="Aucun dossier trouvé"
-          subtitle={isStudent ? "Soumettez votre première demande de soutien." : "Aucun dossier ne correspond à vos filtres."}
-          action={isStudent && (
-            <button className="btn btn-terra" onClick={() => setShowCreate(true)}>{t('new_request')}</button>
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#A0AEC0' }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+          <div>Loading cases…</div>
+        </div>
+      ) : cases.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#A0AEC0' }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>📋</div>
+          <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>No cases found</div>
+          <p style={{ fontSize: 14, marginBottom: 20 }}>
+            {isStudent ? 'Submit a support request to get started.' : 'No cases match your filters.'}
+          </p>
+          {isStudent && (
+            <button className="btn btn-terra" onClick={() => setShowCreate(true)}>+ New Request</button>
           )}
-        />
+        </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <div className="table-container">
             <table className="mm-table">
               <thead>
                 <tr>
-                  <th>Dossier</th>
-                  {!isStudent && <th>Étudiant</th>}
-                  <th>Titre</th>
+                  <th>Case #</th>
+                  {!isStudent && <th>Student</th>}
+                  <th>Title</th>
                   <th>Type</th>
-                  <th>Priorité</th>
-                  <th>Statut</th>
-                  <th>Progression</th>
-                  {!isStudent && <th>Conseiller</th>}
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  {!isStudent && <th>Counselor</th>}
                   <th>Date</th>
                   <th>Action</th>
                 </tr>
@@ -143,22 +178,24 @@ export default function CasesPage() {
               <tbody>
                 {cases.map(c => (
                   <tr key={c.id}>
-                    <td className="font-bold text-sage-400 font-mono">{c.case_number}</td>
-                    {!isStudent && <td className="font-medium">{c.student_name}</td>}
-                    <td className="max-w-xs truncate">{c.title}</td>
-                    <td className="text-gray-500 text-xs">{c.case_type}</td>
+                    <td style={{ fontWeight: 700, color: '#6B8F71', fontFamily: 'monospace' }}>{c.case_number}</td>
+                    {!isStudent && <td style={{ fontWeight: 600 }}>{c.student_name}</td>}
+                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</td>
+                    <td style={{ fontSize: 12, color: '#A0AEC0', textTransform: 'capitalize' }}>{c.case_type}</td>
                     <td><PriorityBadge priority={c.priority} /></td>
                     <td><StatusBadge status={c.status} /></td>
                     <td style={{ width: 100 }}>
-                      <ProgressBar percent={c.progress_percent} />
-                      <div className="text-xs text-gray-400 mt-0.5">{c.progress_percent}%</div>
+                      <div className="progress-track">
+                        <div className="progress-fill" style={{ width: c.progress_percent + '%' }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: '#A0AEC0', marginTop: 2 }}>{c.progress_percent}%</div>
                     </td>
-                    {!isStudent && <td className="text-gray-500 text-xs">{c.counselor_name || '—'}</td>}
-                    <td className="text-gray-400 text-xs whitespace-nowrap">
-                      {new Date(c.created_at).toLocaleDateString('fr')}
+                    {!isStudent && <td style={{ fontSize: 12, color: '#718096' }}>{c.counselor_name || '—'}</td>}
+                    <td style={{ fontSize: 12, color: '#A0AEC0', whiteSpace: 'nowrap' }}>
+                      {new Date(c.created_at).toLocaleDateString('en')}
                     </td>
                     <td>
-                      <Link to={`/cases/${c.id}`} className="btn btn-outline btn-sm">Voir</Link>
+                      <Link to={`/cases/${c.id}`} className="btn btn-outline btn-sm">View</Link>
                     </td>
                   </tr>
                 ))}
@@ -168,76 +205,83 @@ export default function CasesPage() {
         </div>
       )}
 
-      {/* Create Case Modal */}
       <Modal
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        title="Nouvelle Demande de Soutien"
-        subtitle="Votre demande est entièrement confidentielle 🔒"
+        title="New Support Request"
+        subtitle="Your request is completely confidential 🔒"
         footer={
           <>
-            <button className="btn btn-ghost" onClick={() => setShowCreate(false)}>Annuler</button>
-            <button className="btn btn-terra" form="create-case-form" type="submit"
-              disabled={createMutation.isLoading}>
-              {createMutation.isLoading ? '⏳ Envoi…' : 'Soumettre la demande'}
+            <button className="btn btn-ghost" onClick={() => setShowCreate(false)}>Cancel</button>
+            <button
+              className="btn btn-terra"
+              form="create-case-form"
+              type="submit"
+              disabled={createMutation.isLoading}
+            >
+              {createMutation.isLoading ? '⏳ Submitting…' : 'Submit Request'}
             </button>
           </>
         }
       >
         <form id="create-case-form" onSubmit={handleSubmit(d => createMutation.mutate(d))}>
-          <div className="space-y-4">
-            <div className="form-group mb-0">
-              <label className="form-label">Titre / Sujet</label>
-              <input className="form-input" placeholder="Décrivez brièvement votre situation…"
-                {...register('title', { required: 'Le titre est requis' })} />
-              {errors.title && <p className="form-error">{errors.title.message}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="form-group mb-0">
-                <label className="form-label">Type de soutien</label>
-                <select className="form-input" {...register('case_type', { required: true })}>
-                  {CASE_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
-                </select>
-              </div>
-              <div className="form-group mb-0">
-                <label className="form-label">Niveau de priorité</label>
-                <select className="form-input" {...register('priority')}>
-                  {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group mb-0">
-              <label className="form-label">Comment vous sentez-vous ?</label>
-              <textarea className="form-input" rows={4}
-                placeholder="Décrivez ce que vous vivez. C'est un espace sûr et confidentiel…"
-                {...register('description', { required: 'La description est requise' })} />
-              {errors.description && <p className="form-error">{errors.description.message}</p>}
-            </div>
-
-            {counselors?.length > 0 && (
-              <div className="form-group mb-0">
-                <label className="form-label">Conseiller préféré (optionnel)</label>
-                <select className="form-input" {...register('counselor')}>
-                  <option value="">Pas de préférence</option>
-                  {counselors.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name}{c.specialty ? ` — ${c.specialty}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-              <input type="checkbox" className="w-4 h-4 accent-sage-400" {...register('is_urgent')} />
-              <div>
-                <div className="text-sm font-bold text-gray-700 dark:text-gray-200">Marquer comme urgent</div>
-                <div className="text-xs text-gray-400">Si vous avez besoin d'une aide immédiate</div>
-              </div>
-            </label>
+          <div className="form-group">
+            <label className="form-label">Title / Subject</label>
+            <input
+              className="form-input"
+              placeholder="Briefly describe your situation…"
+              {...register('title', { required: 'Title is required' })}
+            />
+            {errors.title && <p className="form-error">{errors.title.message}</p>}
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Type of Support</label>
+              <select className="form-input" {...register('case_type', { required: true })}>
+                {CASE_TYPES.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Priority Level</label>
+              <select className="form-input" {...register('priority')}>
+                {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">How are you feeling?</label>
+            <textarea
+              className="form-input"
+              rows={4}
+              placeholder="Share what you are experiencing. This is a safe and confidential space…"
+              {...register('description', { required: 'Please describe how you are feeling' })}
+            />
+            {errors.description && <p className="form-error">{errors.description.message}</p>}
+          </div>
+
+          {counselors?.length > 0 && (
+            <div className="form-group">
+              <label className="form-label">Preferred Counselor (optional)</label>
+              <select className="form-input" {...register('counselor')}>
+                <option value="">No preference</option>
+                {counselors.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.full_name}{c.specialty ? ` — ${c.specialty}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '12px 14px', borderRadius: 10, background: '#FAF7F2' }}>
+            <input type="checkbox" style={{ width: 16, height: 16, accentColor: '#6B8F71' }} {...register('is_urgent')} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>Mark as urgent</div>
+              <div style={{ fontSize: 11, color: '#A0AEC0' }}>If you need immediate support</div>
+            </div>
+          </label>
         </form>
       </Modal>
     </div>
