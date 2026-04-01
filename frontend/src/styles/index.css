@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Lato', sans-serif;
+    background-color: #FAF7F2;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer;
+  }
+  .btn-primary   { @apply bg-green-700 text-white hover:bg-green-800; }
+  .btn-outline   { @apply border border-green-700 text-green-700 bg-transparent hover:bg-green-50; }
+  .btn-terra     { @apply bg-orange-600 text-white hover:bg-orange-700; }
+  .btn-ghost     { @apply text-gray-500 hover:bg-gray-100; }
+  .btn-sm        { @apply px-3 py-1.5 text-xs; }
+  .btn-full      { @apply w-full; }
+
+  .form-input {
+    @apply w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm
+           bg-white focus:outline-none focus:border-green-600 transition-colors;
+  }
+  .form-label {
+    @apply block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5;
+  }
+  .form-group { @apply mb-4; }
+  .form-error { @apply text-red-500 text-xs mt-1; }
+
+  .card {
+    @apply bg-white border border-gray-100 rounded-xl p-6;
+  }
+  .card-title { @apply text-lg font-semibold text-gray-800 mb-1; }
+  .card-sub   { @apply text-xs text-gray-400 mb-5; }
+
+  .badge      { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold; }
+  .badge-open { @apply bg-amber-50 text-amber-600; }
+  .badge-progress { @apply bg-blue-50 text-blue-600; }
+  .badge-resolved { @apply bg-green-50 text-green-600; }
+  .badge-urgent   { @apply bg-red-50 text-red-600; }
+  .badge-student  { @apply bg-green-50 text-green-600; }
+  .badge-counselor { @apply bg-blue-50 text-blue-600; }
+  .badge-admin    { @apply bg-orange-50 text-orange-500; }
+
+  .nav-item {
+    @apply flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm
+           text-gray-500 hover:bg-green-50 hover:text-green-700
+           transition-all duration-150 text-left;
+  }
+  .nav-item.active {
+    @apply bg-green-700 text-white font-bold;
+  }
+
+  .sidebar {
+    @apply w-64 flex-shrink-0 bg-white border-r border-gray-100
+           flex flex-col h-screen sticky top-0;
+  }
+
+  .mm-table { @apply w-full text-sm border-collapse; }
+  .mm-table thead th {
+    @apply text-left py-2.5 px-3.5 text-xs uppercase tracking-wide
+           text-gray-400 border-b border-gray-100 font-bold;
+  }
+  .mm-table tbody tr {
+    @apply border-b border-gray-50 hover:bg-green-50 transition-colors;
+  }
+  .mm-table tbody td { @apply py-3 px-3.5 text-gray-600; }
+  .mm-table tbody tr:last-child { @apply border-0; }
+
+  .progress-track { @apply bg-gray-100 rounded-full h-1.5 overflow-hidden; }
+  .progress-fill  { @apply h-full bg-green-600 rounded-full transition-all duration-500; }
+}
+
+@layer utilities {
+  .font-display { font-family: 'Playfair Display', Georgia, serif; }
+  .bg-cream     { background-color: #FAF7F2; }
+  .scrollbar-hide { scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+}

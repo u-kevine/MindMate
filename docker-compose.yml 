@@ -1,0 +1,176 @@
+# =============================================================================
+#  MindMate — Django Backend Dockerfile
+#  File location: mindmate/backend/Dockerfile.backend
+#
+#  Two-stage build:
+#    Stage 1 (builder)  — installs Python deps into a virtual environment
+#    Stage 2 (runtime)  — copies only the venv + app source, no build tools
+#
+#  Build arg:
+#    PYTHON_VERSION  default 3.11  (must match an official python slim tag)
+#
+#  Usage:
+#    docker build -f Dockerfile.backend -t mindmate_backend:latest .
+#
+#  The CMD runs Gunicorn in production.
+#  In docker-compose.yml the command is overridden for development to use
+#  Django's built-in runserver with hot reload.
+# =============================================================================
+
+ARG PYTHON_VERSION=3.11
+
+# -----------------------------------------------------------------------------
+# Stage 1 — builder
+# Installs all C libraries needed to compile psycopg2, Pillow, etc.,
+# then builds a self-contained virtual environment at /opt/venv.
+# This stage is discarded in the final image — none of the build tools remain.
+# -----------------------------------------------------------------------------
+FROM python:${PYTHON_VERSION}-slim AS builder
+
+ARG PYTHON_VERSION
+
+LABEL stage=builder
+
+# Prevent Python from writing .pyc files and ensure stdout/stderr are unbuffered
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100
+
+# System build dependencies:
+#   gcc          — needed to compile C extensions (psycopg2, etc.)
+#   libpq-dev    — PostgreSQL client headers for psycopg2
+#   libjpeg-dev  — JPEG support for Pillow
+#   zlib1g-dev   — zlib compression support for Pillow
+#   libwebp-dev  — WebP support for Pillow
+#   curl         — used in health-check scripts
+#   git          — needed if any pip dep is installed from a git URL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        libjpeg-dev \
+        zlib1g-dev \
+        libwebp-dev \
+        curl \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create an isolated virtual environment — keeps deps separate from system Python
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Upgrade pip + setuptools before installing project deps
+RUN pip install --upgrade pip setuptools wheel
+
+# Copy only the requirements file first so Docker can cache this layer.
+# If requirements.txt does not change, this RUN layer is reused on rebuild
+# even if the source code has changed — significantly speeds up iterative builds.
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+
+# -----------------------------------------------------------------------------
+# Stage 2 — runtime
+# Starts from a clean slim image, copies only the venv and application source.
+# Result: a lean image with no compilers, headers, or build artefacts.
+# -----------------------------------------------------------------------------
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+ARG PYTHON_VERSION
+
+LABEL maintainer="MindMate Team <dev@mindmate.rw>" \
+      description="MindMate Django REST API" \
+      version="1.0.0"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Point PATH to the venv built in stage 1
+    PATH="/opt/venv/bin:$PATH" \
+    # Django settings module (overridden by docker-compose env if needed)
+    DJANGO_SETTINGS_MODULE="mindmate_project.settings" \
+    # Gunicorn defaults (overridden by CMD / docker-compose command)
+    GUNICORN_WORKERS=3 \
+    GUNICORN_THREADS=2 \
+    GUNICORN_TIMEOUT=120 \
+    GUNICORN_BIND="0.0.0.0:8000" \
+    # Timezone
+    TZ="Africa/Kigali"
+
+# Runtime system libraries only — no compilers needed here:
+#   libpq5       — PostgreSQL client runtime (needed by psycopg2 at runtime)
+#   libjpeg62    — JPEG runtime for Pillow
+#   zlib1g       — zlib runtime for Pillow
+#   libwebp7     — WebP runtime for Pillow
+#   curl         — used by health-check scripts
+#   tzdata       — timezone database for Africa/Kigali
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+        libjpeg62-turbo \
+        zlib1g \
+        libwebp7 \
+        curl \
+        tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for running the application.
+# Running as root inside a container is a security risk.
+RUN groupadd --gid 1000 mindmate \
+    && useradd --uid 1000 --gid mindmate --shell /bin/bash \
+       --create-home mindmate
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /opt/venv /opt/venv
+
+# Set the working directory and copy application source
+WORKDIR /app
+COPY --chown=mindmate:mindmate . .
+
+# Create directories that Django needs at runtime and set ownership.
+# These paths match MEDIA_ROOT and STATIC_ROOT in settings.py.
+RUN mkdir -p /app/media /app/staticfiles /app/logs \
+    && chown -R mindmate:mindmate /app/media /app/staticfiles /app/logs
+
+# Switch to the non-root user for all subsequent commands and the final CMD
+USER mindmate
+
+# Expose the port Gunicorn will bind to
+EXPOSE 8000
+
+# Health check — Docker will poll this every 30s.
+# Fails if the API does not respond with HTTP 200 within 10s.
+# After 3 consecutive failures the container is marked unhealthy.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/auth/counselors/ \
+        -H "Authorization: Bearer invalid" \
+        -o /dev/null -s -w "%{http_code}" | grep -qE "^(200|401|403)$" \
+    || exit 1
+
+# =============================================================================
+# Default command — Gunicorn with production-grade settings.
+#
+# Worker class:  sync (default) — swap to geventfor async/long-poll endpoints
+# Workers:       2 * CPU cores + 1 is the standard formula.
+#                GUNICORN_WORKERS defaults to 3 (fits a 1-core container).
+# Threads:       2 threads per worker for mild concurrency within each worker.
+# Timeout:       120s — long enough for slow DB queries and report generation.
+# Max requests:  1000 per worker before graceful restart — prevents memory leaks.
+# Access log:    "-" writes to stdout so Docker captures it with docker logs.
+# Error log:     "-" writes to stderr.
+#
+# docker-compose.yml overrides this CMD with Django's runserver for development.
+# =============================================================================
+CMD gunicorn mindmate_project.wsgi:application \
+        --bind         $GUNICORN_BIND \
+        --workers      $GUNICORN_WORKERS \
+        --threads      $GUNICORN_THREADS \
+        --timeout      $GUNICORN_TIMEOUT \
+        --max-requests 1000 \
+        --max-requests-jitter 100 \
+        --access-logfile  - \
+        --error-logfile   - \
+        --log-level    info \
+        --capture-output
