@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Resource, ResourceCategory, ResourceView
 from .serializers import (
-    ResourceSerializer, ResourceListSerializer,
+    ResourceSerializer, ResourceSerializer,
     ResourceCategorySerializer, CreateResourceSerializer,
 )
 from apps.accounts.permissions import IsAdminUser
@@ -36,7 +36,7 @@ class ResourceListCreateView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return CreateResourceSerializer
-        return ResourceListSerializer
+        return ResourceSerializer
 
     def get_permissions(self):
         if self.request.method == 'POST':

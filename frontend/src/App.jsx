@@ -13,6 +13,7 @@ import MessagesPage from './pages/MessagesPage'
 import ResourcesPage from './pages/ResourcesPage'
 import UsersPage    from './pages/UsersPage'
 import ReportsPage  from './pages/ReportsPage'
+import SessionsPage from './pages/SessionsPage'
 import ProfilePage  from './pages/ProfilePage'
 import NotFound     from './pages/NotFound'
 
@@ -52,6 +53,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="cases" element={<CasesPage />} />
             <Route path="cases/:id" element={<CaseDetail />} />
+            <Route path="sessions" element={<SessionsPage />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="resources" element={<ResourcesPage />} />
             <Route path="users"   element={<PrivateRoute roles={['admin']}><UsersPage /></PrivateRoute>} />

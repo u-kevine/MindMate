@@ -1,127 +1,202 @@
-import { useState } from 'react'
-import { useQuery } from 'react-query'
-import { resourcesApi } from '../services/api'
-import { useAuth } from '../contexts/AuthContext'
+import { useState, useEffect } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
+import api from '../services/api'
 import toast from 'react-hot-toast'
 
 export default function ResourcesPage() {
-  const { user }  = useAuth()
-  const { t }     = useTheme()
-  const [catFilter, setCatFilter] = useState('')
-  const [search, setSearch]       = useState('')
+  const { theme } = useTheme()
+  const dark = theme === 'dark'
 
-  const { data: categories } = useQuery(
-    'categories',
-    () => resourcesApi.categories().then(r => r.data)
-  )
-  const { data, isLoading } = useQuery(
-    ['resources', catFilter],
-    () => resourcesApi.list({ category: catFilter || undefined }).then(r => r.data)
-  )
+  const [resources,   setResources]   = useState([])
+  const [categories,  setCategories]  = useState([])
+  const [activecat,   setActiveCat]   = useState('all')
+  const [search,      setSearch]      = useState('')
+  const [selected,    setSelected]    = useState(null)
+  const [loading,     setLoading]     = useState(true)
 
-  const cats = categories?.results || categories || []
-  const resources = (data?.results || data || []).filter(r =>
-    !search || r.title.toLowerCase().includes(search.toLowerCase())
-  )
+  useEffect(() => {
+    fetchCategories()
+    fetchResources()
+  }, [])
+
+  async function fetchCategories() {
+    try {
+      const res = await api.get('/resources/categories/')
+      setCategories(res.data.results || res.data)
+    } catch { console.error('categories failed') }
+  }
+
+  async function fetchResources(catSlug = null, q = null) {
+    setLoading(true)
+    try {
+      let url = '/resources/?'
+      if (catSlug && catSlug !== 'all') url += `category=${catSlug}&`
+      if (q) url += `search=${encodeURIComponent(q)}&`
+      const res = await api.get(url)
+      setResources(res.data.results || res.data)
+    } catch { toast.error('Could not load resources') }
+    finally { setLoading(false) }
+  }
+
+  function handleCatChange(slug) {
+    setActiveCat(slug)
+    fetchResources(slug === 'all' ? null : slug, search || null)
+  }
+
+  function handleSearch(e) {
+    setSearch(e.target.value)
+    fetchResources(activecat === 'all' ? null : activecat, e.target.value || null)
+  }
+
+  async function openResource(resource) {
+    setSelected(resource)
+    // Track view
+    try { await api.post(`/resources/${resource.id}/view/`) } catch {}
+  }
+
+  const card = `rounded-xl border overflow-hidden cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md ${
+    dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+  }`
+
+  const TYPE_ICONS = { article: '📄', guide: '📋', video: '🎬', pdf: '📕', audio: '🎧' }
 
   return (
-    <div className="animate-fade-in">
-
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
-            Wellness Resources
-          </h1>
-          <p style={{ fontSize: 13, color: '#A0AEC0' }}>Mental health educational materials</p>
-        </div>
-        {user?.role === 'admin' && (
-          <button className="btn btn-terra btn-sm" onClick={() => toast('Upload resource feature active')}>
-            + Upload Resource
-          </button>
-        )}
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className={`font-display text-2xl font-semibold ${dark ? 'text-gray-100' : 'text-gray-800'}`}>
+          Wellness Resources
+        </h1>
+        <p className={`text-sm mt-1 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+          Evidence-based mental health guides, articles and tools
+        </p>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+      {/* Search */}
+      <div className="relative mb-5">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+        <input
+          className={`w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none focus:border-green-400 ${
+            dark ? 'bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500'
+                 : 'bg-white border-gray-200 text-gray-800 placeholder-gray-400'
+          }`}
+          placeholder="Search resources…"
+          value={search}
+          onChange={handleSearch}
+        />
+      </div>
+
+      {/* Category filters */}
+      <div className="flex gap-2 flex-wrap mb-6">
         <button
-          onClick={() => setCatFilter('')}
-          className={`btn btn-sm ${!catFilter ? 'btn-primary' : 'btn-outline'}`}
-        >
-          {t('all')}
+          onClick={() => handleCatChange('all')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+            activecat === 'all'
+              ? 'bg-green-600 text-white'
+              : dark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}>
+          All
         </button>
-        {cats.map(c => (
-          <button
-            key={c.id}
-            onClick={() => setCatFilter(c.id)}
-            className={`btn btn-sm ${catFilter == c.id ? 'btn-primary' : 'btn-outline'}`}
-          >
-            {c.icon} {c.name}
+        {categories.map(cat => (
+          <button key={cat.slug}
+            onClick={() => handleCatChange(cat.slug)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+              activecat === cat.slug
+                ? 'bg-green-600 text-white'
+                : dark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}>
+            {cat.icon} {cat.name}
           </button>
         ))}
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <input
-          className="form-input"
-          style={{ maxWidth: 280 }}
-          placeholder="Search resources…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#A0AEC0' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>📚</div>
-          <div>Loading resources…</div>
-        </div>
+      {/* Grid */}
+      {loading ? (
+        <div className="text-center py-16 text-gray-400">Loading resources…</div>
       ) : resources.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#A0AEC0' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-          <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>No resources found</div>
-          <p style={{ fontSize: 14 }}>Check back soon for new wellness materials.</p>
+        <div className="text-center py-16">
+          <div className="text-5xl mb-4">📚</div>
+          <p className={`${dark ? 'text-gray-400' : 'text-gray-500'}`}>No resources found</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {resources.map(r => (
-            <div
-              key={r.id}
-              className="card"
-              style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'transform .2s, box-shadow .2s' }}
-              onClick={() => toast(`Opening: "${r.title}"`)}
-              onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.1)' }}
-              onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '' }}
-            >
-              <div style={{
-                height: 110,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 46,
-                background: r.category_color || '#EBF3EC'
-              }}>
-                {r.category_icon || '📄'}
+            <div key={r.id} className={card} onClick={() => openResource(r)}>
+              {/* Thumb */}
+              <div className="h-28 flex items-center justify-center text-5xl"
+                style={{ background: r.category?.color || '#EBF3EC' }}>
+                {r.category?.icon || '📄'}
               </div>
-              <div style={{ padding: '14px 16px' }}>
-                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: '#A0AEC0', marginBottom: 6 }}>
-                  {r.category_name}
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${dark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
+                    {r.category?.name || 'General'}
+                  </span>
+                  <span className="text-xs text-gray-400">{TYPE_ICONS[r.content_type]} {r.content_type}</span>
+                  {r.is_featured && <span className="text-xs text-yellow-500">⭐ Featured</span>}
                 </div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontWeight: 600, marginBottom: 8, lineHeight: 1.35 }}>
+                <h3 className={`font-display font-semibold text-base leading-snug mb-2 ${dark ? 'text-gray-100' : 'text-gray-800'}`}>
                   {r.title}
-                </div>
-                <div style={{ fontSize: 12, color: '#718096', lineHeight: 1.5, marginBottom: 8 }}>
+                </h3>
+                <p className={`text-xs leading-relaxed line-clamp-2 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {r.description}
-                </div>
+                </p>
               </div>
-              <div style={{
-                padding: '10px 16px',
-                borderTop: '1px solid #EDF2F7',
-                display: 'flex', justifyContent: 'space-between',
-                fontSize: 11, color: '#A0AEC0'
-              }}>
-                <span>👁 {r.view_count} {t('views')}</span>
-                <span>🕐 {r.read_time_minutes} {t('min_read')}</span>
+              <div className={`px-4 py-3 border-t flex justify-between text-xs ${
+                dark ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-400'
+              }`}>
+                <span>👁 {r.view_count || 0} views</span>
+                <span>🕐 {r.read_time_minutes} min read</span>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Resource reader modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className={`w-full max-w-2xl my-8 rounded-2xl shadow-2xl ${dark ? 'bg-gray-800' : 'bg-white'}`}>
+            {/* Header */}
+            <div className="flex items-start justify-between p-6 border-b"
+              style={{ borderColor: dark ? '#374151' : '#E5E7EB' }}>
+              <div className="flex-1 pr-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${dark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
+                    {selected.category?.name}
+                  </span>
+                  <span className="text-xs text-gray-400">🕐 {selected.read_time_minutes} min read</span>
+                </div>
+                <h2 className={`font-display text-xl font-semibold leading-snug ${dark ? 'text-gray-100' : 'text-gray-800'}`}>
+                  {selected.title}
+                </h2>
+              </div>
+              <button onClick={() => setSelected(null)}
+                className={`text-2xl leading-none flex-shrink-0 ${dark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}>
+                ×
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 max-h-[65vh] overflow-y-auto">
+              <p className={`text-sm leading-relaxed mb-6 italic ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                {selected.description}
+              </p>
+              <div className={`text-sm leading-relaxed whitespace-pre-wrap ${dark ? 'text-gray-300' : 'text-gray-700'}`}>
+                {selected.content}
+              </div>
+            </div>
+
+            {/* Footer */}
+            {selected.external_url && (
+              <div className={`p-4 border-t ${dark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <a href={selected.external_url} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-green-500 text-sm font-semibold hover:underline">
+                  🔗 Read full resource externally →
+                </a>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

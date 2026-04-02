@@ -1,6 +1,7 @@
 """Messages Views"""
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from apps.core.email_service import send_new_message_notification
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView

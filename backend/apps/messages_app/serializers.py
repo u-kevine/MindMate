@@ -66,3 +66,4 @@ class StartConversationSerializer(serializers.Serializer):
     recipient_id    = serializers.IntegerField()
     case_id         = serializers.IntegerField(required=False, allow_null=True)
     initial_message = serializers.CharField(min_length=1)
+   

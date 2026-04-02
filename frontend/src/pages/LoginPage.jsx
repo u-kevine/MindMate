@@ -17,7 +17,7 @@ const SLIDES = [
 const ROLES = [
   { value: 'student',   icon: '🎓', labelKey: 'student' },
   { value: 'counselor', icon: '🧑‍⚕️', labelKey: 'counselor' },
-  { value: 'admin',     icon: '🛠️', labelKey: 'admin' },
+  { value: 'admin',     icon: '🛠️',  labelKey: 'admin' },
 ]
 
 export default function LoginPage() {
@@ -27,24 +27,34 @@ export default function LoginPage() {
   const [role, setRole]      = useState('student')
   const [slide, setSlide]    = useState(0)
   const [loading, setLoading]= useState(false)
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: { email: 'student@mindmate.rw', password: 'password' }
   })
 
-  // Slideshow timer
+  // Auto-advance slideshow every 5 seconds
   useEffect(() => {
     const id = setInterval(() => setSlide(s => (s + 1) % SLIDES.length), 5000)
     return () => clearInterval(id)
   }, [])
 
+  const handleRoleSelect = (r) => {
+    setRole(r)
+    if (r === 'student')   { setValue('email', 'student@mindmate.rw');  setValue('password', 'password') }
+    if (r === 'counselor') { setValue('email', 'jean@mindmate.rw');     setValue('password', 'password') }
+    if (r === 'admin')     { setValue('email', 'admin@mindmate.rw');    setValue('password', 'password') }
+  }
+
   const onSubmit = async ({ email, password }) => {
     setLoading(true)
     try {
-      const user = await login(email, password)
-      toast.success(`Bienvenue, ${user.full_name.split(' ')[0]} ! 🌿`)
+      await login(email, password)
+      toast.success('Welcome back! 🌿')
       navigate('/')
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Email ou mot de passe incorrect.'
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.non_field_errors?.[0] ||
+        'Incorrect email or password.'
       toast.error(msg)
     } finally {
       setLoading(false)
@@ -53,6 +63,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen dark:bg-gray-900">
+
       {/* ── Left: Slideshow ── */}
       <div className="hidden lg:flex flex-1 relative overflow-hidden">
         {SLIDES.map((src, i) => (
@@ -62,6 +73,7 @@ export default function LoginPage() {
             style={{ backgroundImage: `url(${src})`, opacity: i === slide ? 1 : 0 }}
           />
         ))}
+
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-sage-900/80 via-sage-800/70 to-gray-900/60" />
 
@@ -74,10 +86,10 @@ export default function LoginPage() {
           </p>
           <div className="mt-14 space-y-4 w-full max-w-sm">
             {[
-              { icon: '🔒', text: 'Conversations confidentielles et sécurisées' },
-              { icon: '💬', text: 'Messagerie directe avec les conseillers' },
-              { icon: '📚', text: 'Ressources de bien-être & guides de soins' },
-              { icon: '📊', text: 'Suivez votre parcours de soutien' },
+              { icon: '🔒', text: 'Confidential & secure conversations' },
+              { icon: '💬', text: 'Direct messaging with counselors' },
+              { icon: '📚', text: 'Wellness resources & self-care guides' },
+              { icon: '📊', text: 'Track your support journey' },
             ].map((f, i) => (
               <div key={i} className="flex items-center gap-4 text-white/85 text-sm">
                 <div className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-base flex-shrink-0">
@@ -104,6 +116,7 @@ export default function LoginPage() {
       {/* ── Right: Form ── */}
       <div className="w-full lg:w-[460px] flex flex-col justify-center px-8 py-12 bg-white dark:bg-gray-800
                       relative transition-colors duration-300">
+
         {/* Controls */}
         <div className="absolute top-5 right-5 flex gap-2">
           <button
@@ -139,7 +152,7 @@ export default function LoginPage() {
                 <button
                   key={r.value}
                   type="button"
-                  onClick={() => setRole(r.value)}
+                  onClick={() => handleRoleSelect(r.value)}
                   className={`border-2 rounded-xl p-3 text-center transition-all ${
                     role === r.value
                       ? 'border-sage-400 bg-sage-50 dark:bg-sage-900/30'
@@ -161,8 +174,12 @@ export default function LoginPage() {
               <input
                 className="form-input"
                 type="email"
-                placeholder="vous@universite.ac.rw"
-                {...register('email', { required: 'Email requis' })}
+                autoComplete="email"
+                placeholder="you@university.ac.rw"
+                {...register('email', {
+                  required: 'Email is required',
+                  pattern: { value: /^\S+@\S+\.\S+$/, message: 'Invalid email' }
+                })}
               />
               {errors.email && <p className="form-error">{errors.email.message}</p>}
             </div>
@@ -172,8 +189,9 @@ export default function LoginPage() {
               <input
                 className="form-input"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
-                {...register('password', { required: 'Mot de passe requis' })}
+                {...register('password', { required: 'Password is required' })}
               />
               {errors.password && <p className="form-error">{errors.password.message}</p>}
             </div>
@@ -183,7 +201,7 @@ export default function LoginPage() {
               disabled={loading}
               className="btn btn-primary btn-full btn-lg mt-2"
             >
-              {loading ? '⏳ Connexion…' : `${t('signin_btn')} →`}
+              {loading ? '⏳ Signing in…' : `${t('signin_btn')} →`}
             </button>
           </form>
 
@@ -195,9 +213,10 @@ export default function LoginPage() {
           </p>
 
           <div className="mt-6 p-4 bg-sage-50 dark:bg-sage-900/20 rounded-xl text-xs text-gray-500 dark:text-gray-400 leading-6 border-l-2 border-sage-400">
-            <strong className="text-sage-500">Comptes démo :</strong><br />
-            🎓 student@mindmate.rw · 🧑‍⚕️ counselor@mindmate.rw · 🛠️ admin@mindmate.rw<br />
-            <span className="text-gray-400">Mot de passe : password</span>
+            <strong className="text-sage-500">Demo accounts</strong> (password: <code>password</code>)<br />
+            🎓 student@mindmate.rw<br />
+            🧑‍⚕️ jean@mindmate.rw · sarah@mindmate.rw<br />
+            🛠️ admin@mindmate.rw
           </div>
         </div>
       </div>

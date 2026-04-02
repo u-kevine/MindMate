@@ -1,5 +1,6 @@
 """Cases Views"""
 from django.utils import timezone
+from apps.core.email_service import send_case_status_update
 from rest_framework import generics, status, permissions, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response

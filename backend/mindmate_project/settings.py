@@ -11,12 +11,14 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(','
 
 # ─── Applications ─────────────────────────────────────────────────────────────
 DJANGO_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
 ]
 
 THIRD_PARTY_APPS = [
@@ -33,6 +35,9 @@ LOCAL_APPS = [
     'apps.cases',
     'apps.messages_app',
     'apps.resources',
+    'apps.sessions_app.apps.SessionsAppConfig',
+    'apps.core',
+    
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -176,4 +181,11 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Mental Health Support System for Students',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+}
+# Django Channels
+ASGI_APPLICATION = 'mindmate_project.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
 }

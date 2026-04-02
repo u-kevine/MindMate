@@ -1,5 +1,6 @@
 """Accounts Views"""
 from django.contrib.auth import get_user_model
+from apps.core.email_service import send_welcome_email
 from rest_framework import generics, status, permissions, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
