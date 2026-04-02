@@ -1,5 +1,8 @@
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
 [phases.build]
-cmds = ["pip install -r requirements.txt", "python manage.py collectstatic --noinput", "python manage.py migrate"]
+cmds = ["python manage.py collectstatic --noinput"]
 
 [start]
 cmd = "daphne -b 0.0.0.0 -p $PORT mindmate_project.asgi:application"
