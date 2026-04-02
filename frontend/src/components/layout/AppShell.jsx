@@ -68,6 +68,7 @@ export default function AppShell() {
   const navItems = [
     { to: '/', icon: '🏠', label: t('dashboard'), roles: ['student', 'counselor', 'admin'] },
     { to: '/cases', icon: '📋', label: user?.role === 'student' ? t('my_cases') : t('cases'), roles: ['student', 'counselor', 'admin'], badge: 0 },
+    { to: '/sessions', icon: '📅', label: 'Sessions', roles: ['student', 'counselor', 'admin'] },
     { to: '/messages', icon: '💬', label: t('messages'), roles: ['student', 'counselor', 'admin'], badge: unread },
     { to: '/resources', icon: '📚', label: t('resources'), roles: ['student', 'counselor', 'admin'] },
     { to: '/users', icon: '👥', label: t('users'), roles: ['admin'] },
