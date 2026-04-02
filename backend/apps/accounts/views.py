@@ -47,6 +47,12 @@ class LogoutView(APIView):
 
 
 class RegisterView(generics.CreateAPIView):
+    def perform_create(self, serializer):
+        user = serializer.save()
+        try:
+            send_welcome_email(user)
+        except Exception as e:
+            print(f'[EMAIL] welcome failed: {e}')
     """Register a new student or counselor."""
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
