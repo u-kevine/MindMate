@@ -5,7 +5,7 @@ NIXPACKS_PYTHON_VERSION = "3.12"
 cmds = ["pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput", "python manage.py migrate"]
+cmds = ["mkdir -p staticfiles", "python manage.py collectstatic --noinput", "python manage.py migrate"]
 
 [start]
 cmd = "python -m daphne -b 0.0.0.0 -p $PORT mindmate_project.asgi:application"
