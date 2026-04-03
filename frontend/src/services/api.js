@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 const api = axios.create({
-  baseURL: 'https://cautious-space-funicular-wr5g7grq456gc5pqv-8000.app.github.dev/api/v1',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
   headers: { 'Content-Type': 'application/json' },
 })
 
