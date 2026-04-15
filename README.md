@@ -1,6 +1,88 @@
 #  MindMate — Système de Soutien en Santé Mentale
 
-> A full-stack mental health support system for students, built with **React + Django + PostgreSQL**.
+> A full-stack web application connecting university students with counselors for confidential mental health support, session booking, secure messaging, and wellness resources.
+
+---
+
+## 📋 Table of Contents
+
+- [Problem Statement](#problem-statement)
+- [Proposed Solution](#proposed-solution)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Setup Instructions](#setup-instructions)
+- [Environment Variables](#environment-variables)
+- [Demo Accounts](#demo-accounts)
+- [API Documentation](#api-documentation)
+
+---
+
+## Problem Statement
+
+University students in Rwanda face significant mental health challenges including academic pressure, anxiety, depression, and grief. The current reality is:
+
+- Students have **no structured, confidential way** to request mental health support
+- Counselors manage cases **informally** with no centralized tracking system
+- Communication between students and counselors happens over WhatsApp or in person with **no records**
+- Administrators have **no visibility** into mental health trends across the institution
+- Students who need help most often **fall through the cracks**
+
+Mental health is a growing crisis in higher education, yet the infrastructure to support students remains largely manual, informal, and inaccessible.
+
+---
+
+## Proposed Solution
+
+MindMate is a structured digital platform with three user roles — Student, Counselor, and Administrator — that provides:
+
+- Confidential support case submission and tracking
+- Real-time secure messaging between students and counselors
+- Calendar-based session booking with email confirmations
+- A curated wellness resource library with real evidence-based content
+- Role-based dashboards with live statistics
+- Email notifications for every key action in the system
+
+---
+
+## Features
+
+### 🎓 Student
+- Register and log in securely with email verification
+- Submit mental health support requests with priority levels
+- Book counseling sessions — choose counselor, pick available time slot, confirm booking
+- Receive email confirmation and Google Calendar invite for sessions
+- Message assigned counselors in real time
+- Browse wellness resources — articles, guides on stress, anxiety, sleep, mindfulness
+- Track case progress and read counselor notes
+
+### 🧑‍⚕️ Counselor
+- View and manage all assigned student cases
+- Update case status: Open → In Progress → Resolved
+- Confirm, complete, or cancel student session bookings
+- Communicate with students through secure messaging
+- Add private counseling notes to cases
+
+### 🛠️ Administrator
+- Manage all student and counselor accounts
+- View system-wide reports and analytics
+- Monitor all active cases and sessions
+- Upload and manage wellness resources by category
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, Vite, Tailwind CSS, React Query |
+| Backend | Django 4.2, Django REST Framework, SimpleJWT |
+| Database | SQLite (development) / PostgreSQL (production) |
+| Authentication | JWT access + refresh tokens with blacklisting |
+| Email | Gmail SMTP — real HTML emails for every key event |
+| Calendar | Google Calendar API via Service Account |
+| Real-time | Django Channels + Daphne ASGI server |
+| Background Tasks | Celery + Redis |
 
 ---
 
